@@ -1,8 +1,7 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useMemo, useCallback } from "react"
 import { useFrame } from "@react-three/fiber"
-import { Sphere, Ring } from "@react-three/drei"
 import * as THREE from "three"
 
 interface Movie {
@@ -29,78 +28,143 @@ interface StarProps {
 export function Star({ movie, onClick, onHover, onUnhover, isHovered }: StarProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const ringRef = useRef<THREE.Mesh>(null)
+  const groupRef = useRef<THREE.Group>(null)
+  const particleRefs = useRef<(THREE.Mesh | null)[]>([])
   const [hovered, setHovered] = useState(false)
 
-  // Pulsing animation
-  useFrame((state) => {
-    if (meshRef.current) {
-      const scale = movie.size + Math.sin(state.clock.elapsedTime * 2) * 0.1
-      meshRef.current.scale.setScalar(hovered ? scale * 1.5 : scale)
-    }
+  const sphereGeometry = useMemo(() => new THREE.SphereGeometry(0.2, 16, 16), [])
+  const glowGeometry = useMemo(() => new THREE.SphereGeometry(0.4, 16, 16), [])
+  const ringGeometry = useMemo(() => new THREE.RingGeometry(0.6, 0.8, 32), [])
+  const particleGeometry = useMemo(() => new THREE.SphereGeometry(0.02, 8, 8), [])
 
-    if (ringRef.current && hovered) {
-      ringRef.current.rotation.z += 0.02
-      ringRef.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 3) * 0.2)
+  const starMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: movie.color,
+        emissive: movie.color,
+        emissiveIntensity: 0.3,
+        transparent: true,
+        opacity: 0.9,
+      }),
+    [movie.color],
+  )
+
+  const glowMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: movie.color,
+        transparent: true,
+        opacity: 0.1,
+      }),
+    [movie.color],
+  )
+
+  const ringMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: movie.color,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide,
+      }),
+    [movie.color],
+  )
+
+  const particleMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: movie.color,
+        transparent: true,
+        opacity: 0.7,
+      }),
+    [movie.color],
+  )
+
+  const particlePositions = useMemo(
+    () =>
+      [...Array(8)].map(
+        (_, i) =>
+          [Math.cos((i / 8) * Math.PI * 2) * 1.2, Math.sin((i / 8) * Math.PI * 2) * 1.2, 0] as [number, number, number],
+      ),
+    [],
+  )
+
+  useFrame((state) => {
+    try {
+      if (meshRef.current) {
+        const scale = movie.size + Math.sin(state.clock.elapsedTime * 2) * 0.1
+        meshRef.current.scale.setScalar(hovered ? scale * 1.5 : scale)
+
+        if (starMaterial) {
+          starMaterial.emissiveIntensity = hovered ? 0.8 : 0.3
+        }
+      }
+
+      if (glowMaterial) {
+        glowMaterial.opacity = hovered ? 0.3 : 0.1
+      }
+
+      if (ringRef.current) {
+        ringRef.current.rotation.z += 0.02
+        ringRef.current.scale.setScalar(1 + Math.sin(state.clock.elapsedTime * 3) * 0.2)
+        if (ringMaterial) {
+          ringMaterial.opacity = hovered ? 0.6 : 0
+        }
+      }
+
+      particleRefs.current.forEach((particle, i) => {
+        if (particle) {
+          const angle = (i / 8) * Math.PI * 2 + state.clock.elapsedTime
+          particle.position.x = Math.cos(angle) * 1.2
+          particle.position.y = Math.sin(angle) * 1.2
+          if (particleMaterial) {
+            particleMaterial.opacity = hovered ? 0.7 : 0
+          }
+        }
+      })
+    } catch (error) {
+      console.warn("Star animation error:", error)
     }
   })
 
-  const handlePointerOver = () => {
+  const handlePointerOver = useCallback(() => {
     setHovered(true)
     onHover(movie.id)
     document.body.style.cursor = "pointer"
-  }
+  }, [movie.id, onHover])
 
-  const handlePointerOut = () => {
+  const handlePointerOut = useCallback(() => {
     setHovered(false)
     onUnhover()
     document.body.style.cursor = "auto"
-  }
+  }, [onUnhover])
 
   return (
-    <group position={movie.position}>
+    <group ref={groupRef} position={movie.position}>
       {/* Main star sphere */}
-      <Sphere
+      <mesh
         ref={meshRef}
-        args={[0.2, 16, 16]}
+        geometry={sphereGeometry}
+        material={starMaterial}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
         onClick={onClick}
-      >
-        <meshStandardMaterial
-          color={movie.color}
-          emissive={movie.color}
-          emissiveIntensity={hovered ? 0.8 : 0.3}
-          transparent
-          opacity={0.9}
-        />
-      </Sphere>
+      />
 
       {/* Glow effect */}
-      <Sphere args={[0.4, 16, 16]}>
-        <meshBasicMaterial color={movie.color} transparent opacity={hovered ? 0.3 : 0.1} />
-      </Sphere>
+      <mesh geometry={glowGeometry} material={glowMaterial} />
 
-      {/* Orbital ring when hovered */}
-      {hovered && (
-        <Ring ref={ringRef} args={[0.6, 0.8, 32]} rotation={[Math.PI / 2, 0, 0]}>
-          <meshBasicMaterial color={movie.color} transparent opacity={0.6} side={THREE.DoubleSide} />
-        </Ring>
-      )}
+      <mesh ref={ringRef} geometry={ringGeometry} material={ringMaterial} rotation={[Math.PI / 2, 0, 0]} />
 
-      {/* Particle trail effect */}
-      {hovered && (
-        <>
-          {[...Array(8)].map((_, i) => (
-            <Sphere
-              key={i}
-              args={[0.02, 8, 8]}
-              position={[Math.cos((i / 8) * Math.PI * 2) * 1.2, Math.sin((i / 8) * Math.PI * 2) * 1.2, 0]}
-            >
-              <meshBasicMaterial color={movie.color} transparent opacity={0.7} />
-            </Sphere>
-          ))}
-        </>
-      )}
+      {particlePositions.map((position, i) => (
+        <mesh
+          key={i}
+          ref={(el) => (particleRefs.current[i] = el)}
+          geometry={particleGeometry}
+          material={particleMaterial}
+          position={position}
+        />
+      ))}
     </group>
   )
 }

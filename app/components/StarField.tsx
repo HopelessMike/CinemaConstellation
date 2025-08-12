@@ -2,7 +2,7 @@
 
 import { useRef, useMemo, useState } from "react"
 import { useFrame } from "@react-three/fiber"
-import { OrbitControls, Stars, Text } from "@react-three/drei"
+import { OrbitControls, Stars } from "@react-three/drei"
 import { Star } from "./Star"
 import type * as THREE from "three"
 
@@ -177,27 +177,13 @@ export function StarField({ onStarClick }: StarFieldProps) {
           <Star
             key={movie.id}
             movie={movie}
-            onClick={onStarClick}
+            onClick={() => onStarClick(movie)}
             onHover={(id) => setHoveredStar(id)}
             onUnhover={() => setHoveredStar(null)}
             isHovered={hoveredStar === movie.id}
           />
         ))}
       </group>
-
-      {/* Floating movie title for hovered star */}
-      {hoveredStar && (
-        <Text
-          position={[0, 4, 0]}
-          fontSize={0.5}
-          color="white"
-          anchorX="center"
-          anchorY="middle"
-          font="/fonts/Inter-Bold.ttf"
-        >
-          {movies.find((m) => m.id === hoveredStar)?.title}
-        </Text>
-      )}
 
       {/* Camera controls */}
       <OrbitControls
