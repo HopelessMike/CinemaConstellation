@@ -59,7 +59,7 @@ export function MovieDetailsDialog({ movie, isOpen, onOpenChange }: MovieDetails
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-black/80 border-cyan-500/30 backdrop-blur-xl animate-in zoom-in-95 fade-in-0 duration-300 p-0">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-black/80 border-cyan-500/30 backdrop-blur-xl p-0">
         <DialogTitle className="sr-only">{movie.title} Details</DialogTitle>
         
         {!showSimilarity ? (
