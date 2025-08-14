@@ -497,7 +497,7 @@ export default function MovieUniverseExplorer() {
           )}
 
           {/* Stats Display - Desktop Only */}
-          {!isInitialLoading && !isMobile && (
+          {!isInitialLoading && (
             <div className="absolute bottom-6 left-6 pointer-events-auto">
               <div className="bg-black/70 backdrop-blur-md border border-cyan-500/30 rounded-lg p-4 space-y-2">
                 <div className="text-cyan-400 font-semibold text-sm">Statistiche Universe</div>
