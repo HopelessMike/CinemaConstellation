@@ -4,7 +4,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 type Movie = { id: number; title: string };
 
