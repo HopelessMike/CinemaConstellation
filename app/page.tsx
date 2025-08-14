@@ -33,7 +33,7 @@ export default function MovieUniverseExplorer() {
   const [showParticles, setShowParticles] = useState(true)
   const [autoRotate, setAutoRotate] = useState(false)
 
-  // ✨ Film scelto dalla barra di ricerca verso cui “volare” con la camera
+  // ✨ Film scelto dalla barra di ricerca verso cui "volare" con la camera
   const [focusMovie, setFocusMovie] = useState<Movie | null>(null)
 
   // Detect mobile device
@@ -87,7 +87,7 @@ export default function MovieUniverseExplorer() {
     setSearchQuery("")
     setSearchResults([])
 
-    // ✨ invece di teletrasportare la camera, chiediamo allo StarField di “volare” verso il film
+    // ✨ invece di teletrasportare la camera, chiediamo allo StarField di "volare" verso il film
     setFocusMovie(movie)
   }
 
@@ -116,7 +116,7 @@ export default function MovieUniverseExplorer() {
         cz + Math.sin(angle) * Math.cos(elevation) * distance,
       ]
 
-      // Il reset rimane “teletrasporto” per immediatezza
+      // Il reset rimane "teletrasporto" per immediatezza
       movieStore.updateCameraPosition(newPosition)
     }
   }
@@ -142,7 +142,7 @@ export default function MovieUniverseExplorer() {
 
       {/* Main Application */}
       <div
-        className={`relative w-full h-screen overflow-hidden bg-black ${
+        className={`fixed inset-0 w-full h-full overflow-hidden bg-black ${
           !showCanvas ? "opacity-0" : "opacity-100"
         } transition-opacity duration-500`}
       >
@@ -284,7 +284,7 @@ export default function MovieUniverseExplorer() {
                 </div>
               </div>
 
-              {/* Mobile Actions */}
+              {/* Mobile Actions - Fixed Layout */}
               <div className="grid grid-cols-4 gap-2">
                 <Button
                   variant="outline"
@@ -293,9 +293,9 @@ export default function MovieUniverseExplorer() {
                     setShowInfo(!showInfo)
                     setMobileMenuOpen(false)
                   }}
-                  className="bg-black/40 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 flex flex-col items-center p-2"
+                  className="bg-black/40 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 flex flex-col items-center justify-center p-3 h-16"
                 >
-                  <Info className="h-4 w-4 mb-1" />
+                  <Info className="h-4 w-4 mb-1 flex-shrink-0" />
                   <span className="text-xs">Info</span>
                 </Button>
                 <Button
@@ -305,9 +305,9 @@ export default function MovieUniverseExplorer() {
                     resetCamera()
                     setMobileMenuOpen(false)
                   }}
-                  className="bg-black/40 border-purple-500/30 text-purple-400 hover:bg-purple-500/10 flex flex-col items-center p-2"
+                  className="bg-black/40 border-purple-500/30 text-purple-400 hover:bg-purple-500/10 flex flex-col items-center justify-center p-3 h-16"
                 >
-                  <Home className="h-4 w-4 mb-1" />
+                  <Home className="h-4 w-4 mb-1 flex-shrink-0" />
                   <span className="text-xs">Random</span>
                 </Button>
                 <Button
@@ -317,9 +317,9 @@ export default function MovieUniverseExplorer() {
                     toggleFullscreen()
                     setMobileMenuOpen(false)
                   }}
-                  className="bg-black/40 border-green-500/30 text-green-400 hover:bg-green-500/10 flex flex-col items-center p-2"
+                  className="bg-black/40 border-green-500/30 text-green-400 hover:bg-green-500/10 flex flex-col items-center justify-center p-3 h-16"
                 >
-                  <Maximize2 className="h-4 w-4 mb-1" />
+                  <Maximize2 className="h-4 w-4 mb-1 flex-shrink-0" />
                   <span className="text-xs">Full</span>
                 </Button>
                 <Button
@@ -329,9 +329,9 @@ export default function MovieUniverseExplorer() {
                     setShowSettings(!showSettings)
                     setMobileMenuOpen(false)
                   }}
-                  className="bg-black/40 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 flex flex-col items-center p-2"
+                  className="bg-black/40 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 flex flex-col items-center justify-center p-3 h-16"
                 >
-                  <Settings className="h-4 w-4 mb-1" />
+                  <Settings className="h-4 w-4 mb-1 flex-shrink-0" />
                   <span className="text-xs">Settings</span>
                 </Button>
               </div>
@@ -341,7 +341,7 @@ export default function MovieUniverseExplorer() {
           {/* Search Results */}
           {searchResults.length > 0 && (
             <div className="absolute top-20 md:top-24 left-4 right-4 md:left-1/2 md:transform md:-translate-x-1/2 md:w-96 max-w-[90vw] pointer-events-auto z-30">
-              <div className="bg-black/90 backdrop-blur-md border border-cyan-500/30 rounded-lg shadow-2xl overflow-hidden">
+              <div className="bg-black/90 backdrop-blur-md border border-cyan-500/30 rounded-lg shadow-2xl overflow-hidden max-h-[60vh] overflow-y-auto">
                 <div className="p-3 border-b border-gray-700/50">
                   <p className="text-sm text-gray-400">{searchResults.length} film trovati</p>
                 </div>
@@ -386,10 +386,20 @@ export default function MovieUniverseExplorer() {
           {showInfo && (
             <div className="absolute top-24 right-6 pointer-events-auto z-30">
               <div className="bg-black/90 backdrop-blur-md border border-cyan-500/30 rounded-lg p-4 w-80 max-w-[90vw]">
-                <h3 className="text-white font-semibold mb-3 flex items-center">
-                  <Info className="w-4 h-4 mr-2 text-cyan-400" />
-                  About Cinema Constellations
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-white font-semibold flex items-center">
+                    <Info className="w-4 h-4 mr-2 text-cyan-400" />
+                    About Cinema Constellations
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowInfo(false)}
+                    className="md:hidden h-6 w-6 text-gray-400 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
                 <div className="space-y-3 text-sm text-gray-300">
                   <p>
                     Benvenuto in un universo 3D interattivo dove ogni stella rappresenta un film. I film sono
@@ -418,10 +428,20 @@ export default function MovieUniverseExplorer() {
           {showSettings && (
             <div className="absolute top-24 right-6 pointer-events-auto z-30">
               <div className="bg-black/90 backdrop-blur-md border border-cyan-500/30 rounded-lg p-4 w-64">
-                <h3 className="text-white font-semibold mb-3 flex items-center">
-                  <Settings className="w-4 h-4 mr-2 text-cyan-400" />
-                  Impostazioni Display
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-white font-semibold flex items-center">
+                    <Settings className="w-4 h-4 mr-2 text-cyan-400" />
+                    Impostazioni Display
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowSettings(false)}
+                    className="h-6 w-6 text-gray-400 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-300">Modalità Performance</span>
@@ -476,8 +496,8 @@ export default function MovieUniverseExplorer() {
             </div>
           )}
 
-          {/* Stats Display */}
-          {!isInitialLoading && (
+          {/* Stats Display - Desktop Only */}
+          {!isInitialLoading && !isMobile && (
             <div className="absolute bottom-6 left-6 pointer-events-auto">
               <div className="bg-black/70 backdrop-blur-md border border-cyan-500/30 rounded-lg p-4 space-y-2">
                 <div className="text-cyan-400 font-semibold text-sm">Statistiche Universe</div>
@@ -499,8 +519,8 @@ export default function MovieUniverseExplorer() {
             </div>
           )}
 
-          {/* Tips */}
-          {!isInitialLoading && searchQuery === "" && !showSettings && !showInfo && (
+          {/* Tips - Desktop Only, Never on Mobile */}
+          {!isInitialLoading && !isMobile && searchQuery === "" && !showSettings && !showInfo && (
             <div className="absolute bottom-6 right-6 pointer-events-auto max-w-xs">
               <div className="bg-black/70 backdrop-blur-md border border-purple-500/30 rounded-lg p-4">
                 <div className="text-purple-400 font-semibold text-sm mb-2 flex items-center">
