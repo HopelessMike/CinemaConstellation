@@ -2,6 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom cursor styles */
+* {
+  cursor: none !important;
+}
+
+.space-cursor {
+  position: fixed;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+  z-index: 9999;
+  transition: transform 0.1s ease-out, opacity 0.2s ease-out;
+  will-change: transform, opacity;
+  mix-blend-mode: screen; /* opzionale, bello su sfondi scuri */
+}
+
+.space-cursor::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;              /* era 8px */
+  height: 12px;             /* era 8px */
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.9) 0%, rgba(139, 92, 246, 0.6) 60%, transparent 75%);
+  box-shadow:
+    0 0 18px rgba(6, 182, 212, 0.55),
+    0 0 36px rgba(139, 92, 246, 0.35);
+}
+
+.space-cursor-trail {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9998;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.55) 0%, transparent 70%);
+  animation: trailFade 0.5s ease-out forwards; /* mantiene anche il translate */
+}
+
+@keyframes trailFade {
+  from {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+}
+
+/* Touch-friendly styles for mobile */
+@media (hover: none) and (pointer: coarse) {
+  * {
+    cursor: auto !important;
+  }
+  .space-cursor,
+  .space-cursor-trail {
+    display: none !important;
+  }
+}
+
+
+/* Shimmer animation for loading bar */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+}
+
 /* Custom animations for the movie explorer */
 @keyframes typewriter {
   from {
@@ -102,4 +181,13 @@
 
 .similar-movies-container::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(90deg, #7c3aed, #2563eb);
+}
+
+/* Prevent FOUC (Flash of Unstyled Content) */
+.opacity-0 {
+  opacity: 0 !important;
+}
+
+.opacity-100 {
+  opacity: 1 !important;
 }
