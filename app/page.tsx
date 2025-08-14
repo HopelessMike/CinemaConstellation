@@ -2,13 +2,14 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
-import { Search, Settings, Info, Home, Maximize2 } from "lucide-react"
+import { Search, Settings, Info, Home, Maximize2, Menu, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Canvas } from "@react-three/fiber"
 import { StarField } from "./components/StarField"
 import { MovieDetailsDialog } from "./components/MovieDetailsDialog"
 import LoadingScreen from "./components/LoadingScreen"
+import SpaceCursor from "./components/SpaceCursor"
 import { movieStore } from "@/lib/movieStore"
 import { Movie } from "@/lib/types"
 
@@ -16,10 +17,34 @@ export default function MovieUniverseExplorer() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<Movie[]>([])
   const [appState, setAppState] = useState(movieStore.getState())
   const [showSettings, setShowSettings] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [showCanvas, setShowCanvas] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Impostazioni UI controllate
+  const [forceLOD, setForceLOD] = useState<"auto" | "high" | "medium" | "low">("auto")
+  const [showClusters, setShowClusters] = useState(true)
+  const [showParticles, setShowParticles] = useState(true)
+  const [autoRotate, setAutoRotate] = useState(false)
+
+  // ✨ Film scelto dalla barra di ricerca verso cui “volare” con la camera
+  const [focusMovie, setFocusMovie] = useState<Movie | null>(null)
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || "ontouchstart" in window)
+    }
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
 
   // Subscribe to store updates
   useEffect(() => {
@@ -31,6 +56,8 @@ export default function MovieUniverseExplorer() {
 
   // Load movie data on mount
   useEffect(() => {
+    setIsInitialLoading(true)
+    setShowCanvas(false)
     movieStore.loadMovieData()
   }, [])
 
@@ -39,18 +66,29 @@ export default function MovieUniverseExplorer() {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement)
     }
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange)
   }, [])
 
+  // Handle search with null checks
+  useEffect(() => {
+    if (searchQuery.length >= 2) {
+      const results = movieStore.searchMovies(searchQuery)
+      setSearchResults(results)
+    } else {
+      setSearchResults([])
+    }
+  }, [searchQuery])
+
   const handleMovieClick = (movie: Movie) => {
+    // Apri dialog e azzera la ricerca
     setSelectedMovie(movie)
     setIsDialogOpen(true)
-  }
+    setSearchQuery("")
+    setSearchResults([])
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
+    // ✨ invece di teletrasportare la camera, chiediamo allo StarField di “volare” verso il film
+    setFocusMovie(movie)
   }
 
   const toggleFullscreen = async () => {
@@ -62,52 +100,52 @@ export default function MovieUniverseExplorer() {
   }
 
   const resetCamera = () => {
-    // Generate new random position
     const clusters = appState.clusters
     if (clusters.length > 0) {
       const randomCluster = clusters[Math.floor(Math.random() * clusters.length)]
       const [cx, cy, cz] = randomCluster.center
       const radius = randomCluster.radius
-      
+
       const angle = Math.random() * Math.PI * 2
-      const elevation = (Math.random() - 0.5) * Math.PI * 0.5
-      const distance = radius * (2 + Math.random())
-      
+      const elevation = (Math.random() - 0.5) * Math.PI * 0.3
+      const distance = radius * (0.8 + Math.random() * 1.2)
+
       const newPosition: [number, number, number] = [
         cx + Math.cos(angle) * Math.cos(elevation) * distance,
         cy + Math.sin(elevation) * distance,
-        cz + Math.sin(angle) * Math.cos(elevation) * distance
+        cz + Math.sin(angle) * Math.cos(elevation) * distance,
       ]
-      
-      // Update camera position in store
+
+      // Il reset rimane “teletrasporto” per immediatezza
       movieStore.updateCameraPosition(newPosition)
     }
   }
 
-  const filteredMovies = appState.movies.filter(movie =>
-    searchQuery.length >= 2 && (
-      movie.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      movie.director.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      movie.genres.some(genre => genre.toLowerCase().includes(searchQuery.toLowerCase()))
-    )
-  )
-
   const onLoadingComplete = () => {
-    // Additional logic when loading completes if needed
-    console.log("Cinema Universe loaded successfully!")
+    setTimeout(() => {
+      setIsInitialLoading(false)
+      setShowCanvas(true)
+    }, 100)
   }
 
   return (
     <>
+      {/* Custom Space Cursor */}
+      <SpaceCursor />
+
       {/* Loading Screen */}
-      <LoadingScreen 
-        progress={appState.loadingProgress} 
-        isVisible={appState.isLoading}
+      <LoadingScreen
+        progress={appState.loadingProgress}
+        isVisible={isInitialLoading}
         onLoadingComplete={onLoadingComplete}
       />
 
       {/* Main Application */}
-      <div className="relative w-full h-screen overflow-hidden bg-black">
+      <div
+        className={`relative w-full h-screen overflow-hidden bg-black ${
+          !showCanvas ? "opacity-0" : "opacity-100"
+        } transition-opacity duration-500`}
+      >
         {/* Animated Background */}
         <div
           className="fixed inset-0 bg-gradient-to-br from-purple-900/30 via-blue-900/20 to-black"
@@ -120,62 +158,55 @@ export default function MovieUniverseExplorer() {
           }}
         />
 
-        {/* Particle Background */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          {Array.from({ length: 50 }).map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-1 h-1 bg-white rounded-full animate-pulse"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                animationDuration: `${2 + Math.random() * 3}s`,
-                opacity: Math.random() * 0.6 + 0.2
-              }}
-            />
-          ))}
-        </div>
-
         {/* 3D Canvas */}
-        <div id="interactive-canvas-container" className="absolute inset-0 z-10">
-          <Canvas 
-            camera={{ position: appState.cameraPosition, fov: 75 }} 
-            style={{ background: "transparent" }}
-            gl={{ 
-              antialias: true,
-              alpha: true,
-              powerPreference: "high-performance"
-            }}
-          >
-            <Suspense fallback={null}>
-              <StarField onStarClick={handleMovieClick} />
-            </Suspense>
-          </Canvas>
-        </div>
+        {showCanvas && (
+          <div id="interactive-canvas-container" className="absolute inset-0 z-10">
+            <Canvas
+              camera={{ position: appState.cameraPosition, fov: 75 }}
+              style={{ background: "transparent" }}
+              gl={{
+                antialias: true,
+                alpha: true,
+                powerPreference: "high-performance",
+              }}
+            >
+              <Suspense fallback={null}>
+                <StarField
+                  onStarClick={handleMovieClick}
+                  forceLOD={forceLOD}
+                  showClusters={showClusters}
+                  showParticles={showParticles}
+                  autoRotate={autoRotate}
+                  /** ✨ chiediamo allo StarField di animare la camera verso questo film */
+                  focusMovie={focusMovie}
+                />
+              </Suspense>
+            </Canvas>
+          </div>
+        )}
 
         {/* UI Overlay */}
         <div className="absolute inset-0 z-20 pointer-events-none">
           {/* Top Navigation Bar */}
-          <div className="absolute top-0 left-0 right-0 p-6">
+          <div className="absolute top-0 left-0 right-0 p-4 md:p-6">
             <div className="flex items-center justify-between">
               {/* Logo */}
               <div className="pointer-events-auto">
-                <h1 className="text-xl font-bold text-white">Cinema Constellations</h1>
-                <p className="text-sm text-cyan-400">Interactive Movie Universe</p>
+                <h1 className="text-lg md:text-xl font-bold text-white">Cinema Constellations</h1>
+                <p className="text-xs md:text-sm text-cyan-400 hidden md:block">Interactive Movie Universe</p>
               </div>
 
-              {/* Search Bar */}
-              <div className="flex-1 max-w-2xl mx-8">
+              {/* Search Bar - Desktop */}
+              <div className="flex-1 max-w-xl mx-4 md:mx-8 hidden md:block">
                 <div className="relative pointer-events-auto">
                   <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-xl animate-pulse" />
                   <div className="relative bg-black/40 backdrop-blur-md border border-cyan-500/30 rounded-full p-2 shadow-2xl">
                     <div className="flex items-center space-x-3 px-4">
                       <Search className="w-5 h-5 text-cyan-400" />
                       <Input
-                        placeholder="Search movies, directors, genres..."
+                        placeholder="Cerca film, registi, generi..."
                         value={searchQuery}
-                        onChange={(e) => handleSearch(e.target.value)}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                         className="border-0 bg-transparent text-white placeholder-gray-400 focus:ring-0 focus:outline-none flex-1"
                       />
                     </div>
@@ -183,8 +214,18 @@ export default function MovieUniverseExplorer() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center space-x-2 pointer-events-auto">
+              {/* Mobile Menu Button */}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden pointer-events-auto bg-black/40 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 backdrop-blur-md"
+              >
+                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
+
+              {/* Desktop Action Buttons */}
+              <div className="hidden md:flex items-center space-x-2 pointer-events-auto">
                 <Button
                   variant="outline"
                   size="icon"
@@ -225,23 +266,90 @@ export default function MovieUniverseExplorer() {
             </div>
           </div>
 
-          {/* Search Results */}
-          {searchQuery.length >= 2 && filteredMovies.length > 0 && (
-            <div className="absolute top-24 left-1/2 transform -translate-x-1/2 w-96 max-w-[90vw] pointer-events-auto z-30">
-              <div className="bg-black/90 backdrop-blur-md border border-cyan-500/30 rounded-lg shadow-2xl max-h-80 overflow-y-auto">
-                <div className="p-3 border-b border-gray-700/50">
-                  <p className="text-sm text-gray-400">
-                    {filteredMovies.length} movie{filteredMovies.length !== 1 ? 's' : ''} found
-                  </p>
+          {/* Mobile Menu Overlay */}
+          {mobileMenuOpen && (
+            <div className="absolute top-16 left-0 right-0 bg-black/90 backdrop-blur-md border-b border-cyan-500/30 p-4 z-30 pointer-events-auto md:hidden">
+              {/* Mobile Search */}
+              <div className="mb-4">
+                <div className="relative bg-black/40 backdrop-blur-md border border-cyan-500/30 rounded-full p-2">
+                  <div className="flex items-center space-x-3 px-3">
+                    <Search className="w-4 h-4 text-cyan-400" />
+                    <Input
+                      placeholder="Cerca film..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="border-0 bg-transparent text-white placeholder-gray-400 focus:ring-0 focus:outline-none flex-1 text-sm"
+                    />
+                  </div>
                 </div>
-                {filteredMovies.slice(0, 8).map((movie) => (
+              </div>
+
+              {/* Mobile Actions */}
+              <div className="grid grid-cols-4 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowInfo(!showInfo)
+                    setMobileMenuOpen(false)
+                  }}
+                  className="bg-black/40 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 flex flex-col items-center p-2"
+                >
+                  <Info className="h-4 w-4 mb-1" />
+                  <span className="text-xs">Info</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    resetCamera()
+                    setMobileMenuOpen(false)
+                  }}
+                  className="bg-black/40 border-purple-500/30 text-purple-400 hover:bg-purple-500/10 flex flex-col items-center p-2"
+                >
+                  <Home className="h-4 w-4 mb-1" />
+                  <span className="text-xs">Random</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    toggleFullscreen()
+                    setMobileMenuOpen(false)
+                  }}
+                  className="bg-black/40 border-green-500/30 text-green-400 hover:bg-green-500/10 flex flex-col items-center p-2"
+                >
+                  <Maximize2 className="h-4 w-4 mb-1" />
+                  <span className="text-xs">Full</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowSettings(!showSettings)
+                    setMobileMenuOpen(false)
+                  }}
+                  className="bg-black/40 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 flex flex-col items-center p-2"
+                >
+                  <Settings className="h-4 w-4 mb-1" />
+                  <span className="text-xs">Settings</span>
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Search Results */}
+          {searchResults.length > 0 && (
+            <div className="absolute top-20 md:top-24 left-4 right-4 md:left-1/2 md:transform md:-translate-x-1/2 md:w-96 max-w-[90vw] pointer-events-auto z-30">
+              <div className="bg-black/90 backdrop-blur-md border border-cyan-500/30 rounded-lg shadow-2xl overflow-hidden">
+                <div className="p-3 border-b border-gray-700/50">
+                  <p className="text-sm text-gray-400">{searchResults.length} film trovati</p>
+                </div>
+                {searchResults.map((movie) => (
                   <div
                     key={movie.id}
                     className="flex items-center p-3 hover:bg-cyan-500/10 cursor-pointer border-b border-gray-700/50 last:border-b-0 transition-colors"
-                    onClick={() => {
-                      handleMovieClick(movie)
-                      setSearchQuery("")
-                    }}
+                    onClick={() => handleMovieClick(movie)}
                   >
                     <img
                       src={movie.poster_path || "/placeholder.svg?height=60&width=40"}
@@ -253,8 +361,10 @@ export default function MovieUniverseExplorer() {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-medium truncate">{movie.title}</p>
-                      <p className="text-gray-400 text-sm">{movie.release_year} • {movie.director}</p>
-                      <div className="flex items-center mt-1 space-x-1">
+                      <p className="text-gray-400 text-sm">
+                        {movie.release_year} • {movie.director || "Regista sconosciuto"}
+                      </p>
+                      <div className="flex items-center mt-1 space-x-2">
                         <span className="text-yellow-400 text-xs">★ {movie.rating.toFixed(1)}</span>
                         {movie.genres.slice(0, 2).map((genre) => (
                           <span
@@ -268,11 +378,6 @@ export default function MovieUniverseExplorer() {
                     </div>
                   </div>
                 ))}
-                {filteredMovies.length > 8 && (
-                  <div className="p-3 text-center text-gray-400 text-sm border-t border-gray-700/50">
-                    +{filteredMovies.length - 8} more results
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -287,21 +392,21 @@ export default function MovieUniverseExplorer() {
                 </h3>
                 <div className="space-y-3 text-sm text-gray-300">
                   <p>
-                    Welcome to an interactive 3D universe where every star represents a movie. 
-                    Movies are clustered by genre, theme, and cinematic DNA.
+                    Benvenuto in un universo 3D interattivo dove ogni stella rappresenta un film. I film sono
+                    raggruppati per genere, tema e DNA cinematografico.
                   </p>
                   <div className="space-y-2">
-                    <h4 className="text-cyan-400 font-medium">Navigation:</h4>
+                    <h4 className="text-cyan-400 font-medium">Navigazione:</h4>
                     <ul className="space-y-1 text-xs">
-                      <li>• <strong>Drag</strong> to orbit around the universe</li>
-                      <li>• <strong>Scroll</strong> to zoom in/out</li>
-                      <li>• <strong>Hover</strong> over stars to see movie titles</li>
-                      <li>• <strong>Click</strong> stars to explore movie details</li>
+                      <li>• <strong>Trascina</strong> per orbitare nell'universo</li>
+                      <li>• <strong>Scroll</strong> per zoom in/out</li>
+                      <li>• <strong>Hover</strong> sulle stelle per vedere i titoli</li>
+                      <li>• <strong>Click</strong> sulle stelle per i dettagli</li>
                     </ul>
                   </div>
                   <div className="pt-2 border-t border-gray-700/50">
                     <p className="text-xs text-gray-400">
-                      Each star's size represents the movie's rating, and colors indicate genres.
+                      La dimensione di ogni stella rappresenta il rating del film, i colori indicano i generi.
                     </p>
                   </div>
                 </div>
@@ -315,35 +420,55 @@ export default function MovieUniverseExplorer() {
               <div className="bg-black/90 backdrop-blur-md border border-cyan-500/30 rounded-lg p-4 w-64">
                 <h3 className="text-white font-semibold mb-3 flex items-center">
                   <Settings className="w-4 h-4 mr-2 text-cyan-400" />
-                  Display Settings
+                  Impostazioni Display
                 </h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Performance Mode</span>
-                    <select className="bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-xs">
+                    <span className="text-gray-300">Modalità Performance</span>
+                    <select
+                      className="bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-xs"
+                      value={forceLOD}
+                      onChange={(e) => setForceLOD(e.target.value as any)}
+                    >
                       <option value="auto">Auto</option>
-                      <option value="high">High Quality</option>
-                      <option value="performance">Performance</option>
+                      <option value="high">Alta Qualità</option>
+                      <option value="medium">Bilanciata</option>
+                      <option value="low">Performance</option>
                     </select>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Show Clusters</span>
-                    <input type="checkbox" className="text-cyan-500" defaultChecked />
+                    <span className="text-gray-300">Mostra Clusters</span>
+                    <input
+                      type="checkbox"
+                      className="text-cyan-500"
+                      checked={showClusters}
+                      onChange={(e) => setShowClusters(e.target.checked)}
+                    />
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Particle Effects</span>
-                    <input type="checkbox" className="text-cyan-500" defaultChecked />
+                    <span className="text-gray-300">Effetti Particelle</span>
+                    <input
+                      type="checkbox"
+                      className="text-cyan-500"
+                      checked={showParticles}
+                      onChange={(e) => setShowParticles(e.target.checked)}
+                    />
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Auto Rotate</span>
-                    <input type="checkbox" className="text-cyan-500" />
+                    <span className="text-gray-300">Rotazione Auto</span>
+                    <input
+                      type="checkbox"
+                      className="text-cyan-500"
+                      checked={autoRotate}
+                      onChange={(e) => setAutoRotate(e.target.checked)}
+                    />
                   </div>
                   <div className="pt-2 border-t border-gray-700/50">
                     <button
                       onClick={resetCamera}
                       className="w-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 px-3 py-2 rounded text-xs transition-colors"
                     >
-                      Jump to Random Location
+                      Salta a Posizione Casuale
                     </button>
                   </div>
                 </div>
@@ -352,45 +477,41 @@ export default function MovieUniverseExplorer() {
           )}
 
           {/* Stats Display */}
-          {!appState.isLoading && (
+          {!isInitialLoading && (
             <div className="absolute bottom-6 left-6 pointer-events-auto">
               <div className="bg-black/70 backdrop-blur-md border border-cyan-500/30 rounded-lg p-4 space-y-2">
-                <div className="text-cyan-400 font-semibold text-sm">Universe Stats</div>
+                <div className="text-cyan-400 font-semibold text-sm">Statistiche Universe</div>
                 <div className="text-white text-sm space-y-1">
                   <div className="flex items-center">
                     <span className="w-4">🎬</span>
-                    <span>{appState.movies.length.toLocaleString()} Movies</span>
+                    <span>{appState.movies.length.toLocaleString()} Film</span>
                   </div>
                   <div className="flex items-center">
                     <span className="w-4">🌌</span>
-                    <span>{appState.clusters.length} Constellations</span>
+                    <span>{appState.clusters.length} Costellazioni</span>
                   </div>
                   <div className="flex items-center">
                     <span className="w-4">✨</span>
-                    <span>{movieStore.getVisibleMovies().length} Stars Visible</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="w-4">🎯</span>
-                    <span>LOD: {appState.levelOfDetail || 'Auto'}</span>
+                    <span>{movieStore.getVisibleMovies().length} Stelle Visibili</span>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Instructions for first-time users */}
-          {!appState.isLoading && searchQuery === "" && !showSettings && !showInfo && (
+          {/* Tips */}
+          {!isInitialLoading && searchQuery === "" && !showSettings && !showInfo && (
             <div className="absolute bottom-6 right-6 pointer-events-auto max-w-xs">
               <div className="bg-black/70 backdrop-blur-md border border-purple-500/30 rounded-lg p-4">
                 <div className="text-purple-400 font-semibold text-sm mb-2 flex items-center">
                   <span className="w-2 h-2 bg-purple-400 rounded-full mr-2 animate-pulse"></span>
-                  Pro Tips
+                  Suggerimenti Pro
                 </div>
                 <div className="text-gray-300 text-xs space-y-1">
-                  <div>• Use <kbd className="bg-gray-800 px-1 rounded">Search</kbd> to find movies</div>
-                  <div>• <kbd className="bg-gray-800 px-1 rounded">Home</kbd> button for random teleport</div>
-                  <div>• Larger stars = higher ratings</div>
-                  <div>• Colors represent genres</div>
+                  <div>• Usa <kbd className="bg-gray-800 px-1 rounded">Cerca</kbd> per trovare film</div>
+                  <div>• Bottone <kbd className="bg-gray-800 px-1 rounded">Home</kbd> per teletrasporto casuale</div>
+                  <div>• Stelle più grandi = rating più alti</div>
+                  <div>• I colori rappresentano i generi</div>
                 </div>
               </div>
             </div>
@@ -399,10 +520,10 @@ export default function MovieUniverseExplorer() {
 
         {/* Movie Details Dialog */}
         {selectedMovie && (
-          <MovieDetailsDialog 
-            movie={selectedMovie} 
-            isOpen={isDialogOpen} 
-            onOpenChange={setIsDialogOpen} 
+          <MovieDetailsDialog
+            movie={selectedMovie}
+            isOpen={isDialogOpen}
+            onOpenChange={setIsDialogOpen}
           />
         )}
       </div>
