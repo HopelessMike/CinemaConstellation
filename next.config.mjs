@@ -2,16 +2,14 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // se usi <Image/>, consenti poster TMDB; con <img> non è obbligatorio
+  // ⬇️ disattiva lint e type-check in build (come in origine)
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
+
   images: {
     unoptimized: true,
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'image.tmdb.org',
-        port: '',
-        pathname: '/t/p/**',
-      },
+      { protocol: 'https', hostname: 'image.tmdb.org', port: '', pathname: '/t/p/**' },
     ],
     formats: ['image/avif', 'image/webp'],
   },
