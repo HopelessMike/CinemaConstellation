@@ -1,29 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // L'app vive sotto questo sotto-percorso quando servita dietro il portfolio
-  basePath: '/cinema-constellations',
+  reactStrictMode: true,
 
-  // Mantieni le tue impostazioni esistenti
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-
-  // Se in futuro usi <Image/>, abilita TMDB; con <img> non è necessario.
+  // se usi <Image/>, consenti poster TMDB; con <img> non è obbligatorio
   images: {
-    unoptimized: true, // continui a bypassare l'optimizer
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'image.tmdb.org',
         port: '',
-        pathname: '/t/p/**', // copre w200, w500, original, ecc.
+        pathname: '/t/p/**',
       },
     ],
     formats: ['image/avif', 'image/webp'],
   },
-}
+};
 
-export default nextConfig
+export default nextConfig;
