@@ -36,26 +36,18 @@ function findTitles(all: Movie[], id1: number, id2: number) {
 }
 
 async function saveToCache(movie1Id: number, movie2Id: number, analysis: string) {
-  const supabase = createClient(); // vedi step 4 per una versione "admin" più pulita
-  const { error } = await supabase
-    .from('llm_analysis_cache')
-    .upsert(
-      { movie1_id: movie1Id, movie2_id: movie2Id, analysis },
-      { onConflict: 'movie1_id,movie2_id' },
-    );
-
-  if (error) {
-    console.error('[saveToCache] upsert error:', {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      hasURL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasSRK: !!process.env.SUPABASE_SERVICE_ROLE_KEY, // non loggare il valore, solo presenza
-    });
+  try {
+    const supabase = createClient();
+    await supabase
+      .from('llm_analysis_cache')
+      .upsert(
+        { movie1_id: movie1Id, movie2_id: movie2Id, analysis },
+        { onConflict: 'movie1_id,movie2_id' },
+      );
+  } catch {
+    // non bloccare la risposta in caso di errore di cache
   }
 }
-
 
 export async function POST(request: NextRequest) {
   try {

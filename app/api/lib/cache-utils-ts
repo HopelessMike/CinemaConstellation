@@ -1,0 +1,13 @@
+// app/lib/cache-utils.ts
+export const PROMPT_VERSION = 1  // ↑ aumenta quando cambi prompt/formatting
+export const MODEL_TAG = 'openai:gpt-4o-mini' // o leggi dal tuo config
+
+export function normalizePair(a: number, b: number): [number, number] {
+  return a <= b ? [a, b] : [b, a]
+}
+
+export function isStale(updatedAtISO?: string, ttlHours = 720 /* 30 giorni */) {
+  if (!updatedAtISO) return true
+  const ageMs = Date.now() - new Date(updatedAtISO).getTime()
+  return ageMs > ttlHours * 3600 * 1000
+}
