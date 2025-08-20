@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
-import { Search, Settings, Info, Home, Maximize2, Menu, X } from "lucide-react"
+import { Search, Settings, Info, Home, Maximize2, Menu, X} from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Canvas } from "@react-three/fiber"
@@ -12,6 +12,7 @@ import LoadingScreen from "./components/LoadingScreen"
 import SpaceCursor from "./components/SpaceCursor"
 import { movieStore } from "@/lib/movieStore"
 import { Movie } from "@/lib/types"
+import { useAudioEngine } from "@/lib/audio"
 
 export default function MovieUniverseExplorer() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null)
@@ -26,6 +27,7 @@ export default function MovieUniverseExplorer() {
   const [showCanvas, setShowCanvas] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const { enabled: audioEnabled, setEnabled: setAudioEnabled, playClick, playWarp } = useAudioEngine()
 
   // Impostazioni UI controllate
   const [forceLOD, setForceLOD] = useState<"auto" | "high" | "medium" | "low">("auto")
@@ -80,15 +82,26 @@ export default function MovieUniverseExplorer() {
     }
   }, [searchQuery])
 
-  const handleMovieClick = (movie: Movie) => {
-    // Apri dialog e azzera la ricerca
+  // click su stella nel canvas → bip
+  const handleStarClick = (movie: Movie) => {
+    if (audioEnabled) playClick()
+
     setSelectedMovie(movie)
     setIsDialogOpen(true)
     setSearchQuery("")
     setSearchResults([])
+    setFocusMovie(movie) // la camera vola
+  }
 
-    // ✨ invece di teletrasportare la camera, chiediamo allo StarField di "volare" verso il film
-    setFocusMovie(movie)
+  // selezione da lista ricerca → whoosh
+  const handleSearchSelect = (movie: Movie) => {
+    if (audioEnabled) playWarp()
+
+    setSelectedMovie(movie)
+    setIsDialogOpen(true)
+    setSearchQuery("")
+    setSearchResults([])
+    setFocusMovie(movie) // la camera vola
   }
 
   const toggleFullscreen = async () => {
@@ -172,7 +185,7 @@ export default function MovieUniverseExplorer() {
             >
               <Suspense fallback={null}>
                 <StarField
-                  onStarClick={handleMovieClick}
+                  onStarClick={handleStarClick}
                   forceLOD={forceLOD}
                   showClusters={showClusters}
                   showParticles={showParticles}
@@ -349,7 +362,7 @@ export default function MovieUniverseExplorer() {
                   <div
                     key={movie.id}
                     className="flex items-center p-3 hover:bg-cyan-500/10 cursor-pointer border-b border-gray-700/50 last:border-b-0 transition-colors"
-                    onClick={() => handleMovieClick(movie)}
+                    onClick={() => handleSearchSelect(movie)}
                   >
                     <img
                       src={movie.poster_path || "/placeholder.svg?height=60&width=40"}
@@ -424,77 +437,97 @@ export default function MovieUniverseExplorer() {
             </div>
           )}
 
-          {/* Settings Panel */}
-          {showSettings && (
-            <div className="absolute top-24 right-6 pointer-events-auto z-30">
-              <div className="bg-black/90 backdrop-blur-md border border-cyan-500/30 rounded-lg p-4 w-64">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-white font-semibold flex items-center">
-                    <Settings className="w-4 h-4 mr-2 text-cyan-400" />
-                    Impostazioni Display
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowSettings(false)}
-                    className="h-6 w-6 text-gray-400 hover:text-white"
+        {/* Settings Panel */}
+        {showSettings && (
+          <div className="absolute top-24 right-6 pointer-events-auto z-30">
+            <div className="bg-black/90 backdrop-blur-md border border-cyan-500/30 rounded-lg p-4 w-64">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white font-semibold flex items-center">
+                  <Settings className="w-4 h-4 mr-2 text-cyan-400" />
+                  Impostazioni Display
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowSettings(false)}
+                  className="h-6 w-6 text-gray-400 hover:text-white"
+                  aria-label="Chiudi impostazioni"
+                  title="Chiudi"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Modalità Performance</span>
+                  <select
+                    className="bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-xs"
+                    value={forceLOD}
+                    onChange={(e) => setForceLOD(e.target.value as any)}
                   >
-                    <X className="h-4 w-4" />
-                  </Button>
+                    <option value="auto">Auto</option>
+                    <option value="high">Alta Qualità</option>
+                    <option value="medium">Bilanciata</option>
+                    <option value="low">Performance</option>
+                  </select>
                 </div>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Modalità Performance</span>
-                    <select
-                      className="bg-gray-800 text-white border border-gray-600 rounded px-2 py-1 text-xs"
-                      value={forceLOD}
-                      onChange={(e) => setForceLOD(e.target.value as any)}
-                    >
-                      <option value="auto">Auto</option>
-                      <option value="high">Alta Qualità</option>
-                      <option value="medium">Bilanciata</option>
-                      <option value="low">Performance</option>
-                    </select>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Mostra Clusters</span>
-                    <input
-                      type="checkbox"
-                      className="text-cyan-500"
-                      checked={showClusters}
-                      onChange={(e) => setShowClusters(e.target.checked)}
-                    />
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Effetti Particelle</span>
-                    <input
-                      type="checkbox"
-                      className="text-cyan-500"
-                      checked={showParticles}
-                      onChange={(e) => setShowParticles(e.target.checked)}
-                    />
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Rotazione Auto</span>
-                    <input
-                      type="checkbox"
-                      className="text-cyan-500"
-                      checked={autoRotate}
-                      onChange={(e) => setAutoRotate(e.target.checked)}
-                    />
-                  </div>
-                  <div className="pt-2 border-t border-gray-700/50">
-                    <button
-                      onClick={resetCamera}
-                      className="w-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 px-3 py-2 rounded text-xs transition-colors"
-                    >
-                      Salta a Posizione Casuale
-                    </button>
-                  </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Mostra Clusters</span>
+                  <input
+                    type="checkbox"
+                    className="text-cyan-500"
+                    checked={showClusters}
+                    onChange={(e) => setShowClusters(e.target.checked)}
+                  />
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Effetti Particelle</span>
+                  <input
+                    type="checkbox"
+                    className="text-cyan-500"
+                    checked={showParticles}
+                    onChange={(e) => setShowParticles(e.target.checked)}
+                  />
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Rotazione Auto</span>
+                  <input
+                    type="checkbox"
+                    className="text-cyan-500"
+                    checked={autoRotate}
+                    onChange={(e) => setAutoRotate(e.target.checked)}
+                  />
+                </div>
+
+                {/* 🔊 Audio come semplice toggle */}
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Audio</span>
+                  <input
+                    type="checkbox"
+                    className="text-cyan-500"
+                    checked={audioEnabled}
+                    onChange={(e) => setAudioEnabled(e.target.checked)}
+                    aria-label="Attiva/Disattiva audio"
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-gray-700/50">
+                  <button
+                    onClick={resetCamera}
+                    className="w-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 px-3 py-2 rounded text-xs transition-colors"
+                  >
+                    Salta a Posizione Casuale
+                  </button>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
+
 
           {/* Stats Display - Desktop Only */}
           {!isInitialLoading && (
